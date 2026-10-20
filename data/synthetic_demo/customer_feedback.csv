@@ -1,0 +1,6 @@
+# SYNTHETIC DEMO DATA - all values are fictional, generated for testing and demos only.
+feedback_text,date,rating,product,source_type
+"The pricing page was confusing; I could not tell which plan fit my team.",2026-09-05,2,Core Platform,product_review
+"Shipping costs were higher than expected at checkout, so I did not complete the purchase.",2026-09-07,3,Studio Add-on,product_review
+"Loved the demo, but setup took longer than promised on the pricing page.",2026-09-09,4,Core Platform,survey
+"Does this integrate with our CRM? I could not find that in the documentation.",2026-09-11,,Core Platform,support_ticket

@@ -1,0 +1,36 @@
+{
+  "_label": "SYNTHETIC DEMO DATA - all values are fictional, for testing and demos only",
+  "products": [
+    {
+      "name": "Core Platform",
+      "description": "Fictional marketing analytics workspace for testing.",
+      "features": [
+        "Uploads CSV, XLSX, and PDF files",
+        "Campaign performance summaries",
+        "Evidence-linked reports"
+      ],
+      "limitations": [
+        "Does not include real-time bidding",
+        "Telephony analytics are out of scope"
+      ],
+      "approved_claims": [
+        "Campaign performance summaries are computed from uploaded metrics",
+        "Reports link each fact to stored evidence"
+      ],
+      "faqs": [
+        {"question": "Does this integrate with our CRM?", "answer": "CRM connectors are on the roadmap for this fictional product."}
+      ]
+    },
+    {
+      "name": "Studio Add-on",
+      "description": "Fictional creative studio add-on for testing.",
+      "features": [
+        "Generates brand-compliant copy variants"
+      ],
+      "limitations": [
+        "Requires an approved brand guideline document"
+      ],
+      "approved_claims": []
+    }
+  ]
+}

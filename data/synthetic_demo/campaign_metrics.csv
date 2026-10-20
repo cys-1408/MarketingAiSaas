@@ -1,0 +1,9 @@
+# SYNTHETIC DEMO DATA - all values are fictional, generated for testing and demos only.
+campaign_name,date,channel,impressions,clicks,sessions,spend,revenue,conv_events,conv_notes
+Autumn Acquisition Push,2026-09-01,Paid Social,62000,1000,640,850,0,,
+Autumn Acquisition Push,2026-09-02,Paid Social,63500,1050,655,870,1200,9,= signup completed (definition conflict: signup vs purchase)
+Autumn Acquisition Push,2026-09-03,Paid Social,61000,,630,840,1150,8,
+Retention Win-back,2026-09-01,Email,,640,420,110,5300,38,
+Retention Win-back,2026-09-02,Email,,655,435,115,5450,40,
+Search Brand Defense,2026-09-01,Paid Search,14000,610,300,400,1500,22,
+Search Brand Defense,2026-09-02,Paid Search,14200,625,310,410,1600,24,

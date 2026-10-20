@@ -1,0 +1,4 @@
+# SYNTHETIC DEMO DATA - all values are fictional, for testing and demos only.
+experiment_name,variant,observations,sample_size
+Landing page pricing clarity test,control,0.031,4200
+Landing page pricing clarity test,variant_a,0.044,4300

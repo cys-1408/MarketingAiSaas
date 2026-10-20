@@ -1,0 +1,38 @@
+{
+  "_version": "v1",
+  "_note": "Versioned metric contracts. Similar-looking metrics are NOT treated as equivalent until definitions match.",
+  "metrics": {
+    "click_through_rate": {
+      "numerator": "clicks",
+      "denominator": "impressions",
+      "unit": "ratio",
+      "aggregation": "sum over days",
+      "attribution_window_days": 0,
+      "limitations": "requires both impressions and clicks on the same source rows"
+    },
+    "conversion_rate": {
+      "numerator": "conversions",
+      "denominator": "clicks",
+      "unit": "ratio",
+      "aggregation": "sum over days",
+      "attribution_window_days": 7,
+      "limitations": "a generic conversions column might count signups, not purchases — the source event label governs meaning"
+    },
+    "purchase_conversion_rate": {
+      "numerator": "purchases",
+      "denominator": "clicks",
+      "unit": "ratio",
+      "aggregation": "sum over days",
+      "attribution_window_days": 7,
+      "limitations": "only defined where a clearly labeled purchase column exists"
+    },
+    "return_on_ad_spend": {
+      "numerator": "revenue",
+      "denominator": "spend",
+      "unit": "ratio",
+      "aggregation": "sum over days",
+      "attribution_window_days": 7,
+      "limitations": "undefined when spend is zero or missing; never report as zero"
+    }
+  }
+}

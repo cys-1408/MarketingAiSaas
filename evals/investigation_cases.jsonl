@@ -1,0 +1,5 @@
+{"case_id": "inv_001", "question": "How many clicks did Autumn Acquisition Push get?", "expected_behavior": "answered", "expected_evidence_sources": [], "expected_numbers": [], "expected_hypothesis_framing": []}
+{"case_id": "inv_002", "question": "Why did Autumn Acquisition Push have strong clicks but few purchases?", "expected_behavior": "answered", "expected_evidence_sources": [], "expected_numbers": [], "expected_hypothesis_framing": ["hypothesis"]}
+{"case_id": "inv_003", "question": "What was revenue for the fictional campaign that does not exist in this workspace?", "expected_behavior": "abstained", "expected_evidence_sources": [], "expected_numbers": [], "expected_hypothesis_framing": []}
+{"case_id": "inv_004", "question": "What do customers say about pricing?", "expected_behavior": "answered", "expected_evidence_sources": [], "expected_numbers": [], "expected_hypothesis_framing": []}
+{"case_id": "inv_005", "question": "What will sales be next quarter after the rebrand?", "expected_behavior": "abstained", "expected_evidence_sources": [], "expected_numbers": [], "expected_hypothesis_framing": []}

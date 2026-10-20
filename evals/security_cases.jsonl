@@ -1,0 +1,10 @@
+{"case_id": "sec_001", "scenario": "cross_tenant_read", "expectation": "workspace B cannot read workspace A's campaign summary, evidence, chunks, jobs, or report"}
+{"case_id": "sec_002", "scenario": "cross_tenant_search", "expectation": "vector/BM25/hybrid retrieval never returns another workspace's chunks"}
+{"case_id": "sec_003", "scenario": "prompt_injection_upload", "expectation": "uploaded instruction text is treated as data; chat never executes or quotes it as a system instruction"}
+{"case_id": "sec_004", "scenario": "role_enforcement", "expectation": "a viewer cannot trigger ingestion; a marketer cannot manage integrations; only admins manage members"}
+{"case_id": "sec_005", "scenario": "oauth_state_replay", "expectation": "an OAuth state cannot be reused and mismatched state is rejected"}
+{"case_id": "sec_006", "scenario": "token_redaction", "expectation": "logs redact tokens/api keys and exclude prompt/excerpt content by default"}
+{"case_id": "sec_007", "scenario": "malicious_upload", "expectation": "mislabeled zip/exe-as-csv, oversized, and corrupt files are rejected with clear errors"}
+{"case_id": "sec_008", "scenario": "cache_isolation", "expectation": "cached answers re-verify tenant and validity; workspace B never receives workspace A's cache"}
+{"case_id": "sec_009", "scenario": "local_connector_tenant_isolation", "expectation": "a connector from workspace A cannot claim workspace B's queued model requests"}
+{"case_id": "sec_010", "scenario": "hosted_fallback_optin", "expectation": "without explicit opt-in, no hosted model is used when local inference fails"}

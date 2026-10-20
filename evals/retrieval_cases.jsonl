@@ -1,0 +1,5 @@
+{"case_id": "ret_001", "workspace_id": "eval", "query": "Autumn Acquisition Push clicks", "relevant_chunk_ids": [], "expected_sources": [], "should_be_empty": false}
+{"case_id": "ret_002", "workspace_id": "eval", "query": "pricing page confusing feedback", "relevant_chunk_ids": [], "expected_sources": [], "should_be_empty": false}
+{"case_id": "ret_003", "workspace_id": "eval", "query": "experiment variant control sample size", "relevant_chunk_ids": [], "expected_sources": [], "should_be_empty": false}
+{"case_id": "ret_004", "workspace_id": "eval", "query": "unquestionable gibberish nonexistent content xyzzy", "relevant_chunk_ids": [], "expected_sources": [], "should_be_empty": true}
+{"case_id": "ret_005", "workspace_id": "other_tenant", "query": "Autumn Acquisition Push clicks", "relevant_chunk_ids": [], "expected_sources": [], "should_be_empty": true}

@@ -1,0 +1,35 @@
+{
+  "_label": "SYNTHETIC DEMO DATA - all values are fictional, for testing and demos only",
+  "campaigns": [
+    {
+      "name": "Autumn Acquisition Push",
+      "status": "active",
+      "channel": "Paid Social",
+      "audience": "New prospects",
+      "product": "Core Platform",
+      "offer": "Intro demo",
+      "message": "See your campaign data in one place",
+      "landing_page": "https://example.test/autumn"
+    },
+    {
+      "name": "Retention Win-back",
+      "status": "active",
+      "channel": "Email",
+      "audience": "Lapsed customers",
+      "product": "Core Platform",
+      "offer": "20% win-back",
+      "message": "Come back and try the new workspace",
+      "landing_page": "https://example.test/winback"
+    },
+    {
+      "name": "Search Brand Defense",
+      "status": "paused",
+      "channel": "Paid Search",
+      "audience": "Branded search",
+      "product": "Core Platform",
+      "offer": "none",
+      "message": "Official site for branded queries",
+      "landing_page": "https://example.test/"
+    }
+  ]
+}
