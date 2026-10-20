@@ -31,12 +31,19 @@ class InvestigationWorkflow:
         self.graph = self._compile()
 
     def _compile(self) -> StateGraph:
-        graph = StateGraph(InvestigationState)
-        state_type = InvestigationState
+        graph = StateGraph(dict)
+
+        def _ws_id(state) -> str | None:
+            services = getattr(state, "__services__", None)
+            if services is None and isinstance(state, dict):
+                services = state.get("__services__")
+            if isinstance(services, dict):
+                return services.get("workspace_id")
+            return getattr(services, "workspace_id", None)
 
         graph.add_node("classify_request", self._wrap(nodes.classify_request))
         graph.add_node("resolve_scope", self._wrap(
-            lambda state, db: nodes.resolve_scope(state, db, workspace_id=state.workspace_id),
+            lambda state, db: nodes.resolve_scope(state, db, workspace_id=_ws_id(state)),
             needs_db=True,
         ))
         graph.add_node("rewrite_query", self._wrap(nodes.rewrite_query))
@@ -122,17 +129,22 @@ class InvestigationWorkflow:
 
     def _wrap(self, fn, *, needs_db: bool = False):  # noqa: ANN001
         def wrapped(state):
-            if isinstance(state, dict):
-                services = state.get("__services__", {})
-                self._sync_state(state)
-                if needs_db:
-                    fn(state["__state__"], services.get("db"))
-                else:
-                    fn(state["__state__"])
-                result = {"__state__": state["__state__"], "__services__": services}
-                state["__services__"] = services
-                return result
-            return state
+            if not isinstance(state, dict):
+                return state
+            services = state.get("__services__", {})
+            self._sync_state(state)
+            if needs_db:
+                db = services.get("db")
+                if db is None:
+                    state["__errors__"] = state.get("__errors__", [])
+                    state["__errors__"].append("missing db service for " + fn.__name__)
+                    return {"__state__": state["__state__"], "__services__": services, "workspace_id": services.get("workspace_id")}
+                fn(state["__state__"], db)
+            else:
+                fn(state["__state__"])
+            result = {"__state__": state["__state__"], "__services__": services, "workspace_id": services.get("workspace_id")}
+            state["__services__"] = services
+            return result
 
         return wrapped
 
