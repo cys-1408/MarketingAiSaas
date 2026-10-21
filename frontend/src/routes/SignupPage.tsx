@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { AuthShell } from "../components/layout/AuthShell";
 import { useAuth } from "../hooks/useAuth";
+import { ApiError } from "../services/api";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -11,6 +12,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
@@ -19,14 +21,24 @@ export default function SignupPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!name || !email.includes("@") || !company) { setError("Please complete all required fields."); return; }
-    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
-    if (password !== confirm) { setError("Passwords do not match."); return; }
-    if (!agreed) { setError("Please accept the terms to continue."); return; }
+    setFieldError(null);
+    if (!name || !email.includes("@") || !company) { setFieldError("Please complete all required fields."); return; }
+    if (password.length < 8) { setFieldError("Password must be at least 8 characters."); return; }
+    if (password !== confirm) { setFieldError("Passwords do not match."); return; }
+    if (!agreed) { setFieldError("Please accept the terms to continue."); return; }
     setLoading(true);
     try {
-      await signup(name, email);
-      navigate("/onboarding");
+      // The backend transactionally creates the workspace + owner membership.
+      await signup(name, email, password, company);
+      navigate("/app/overview");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 409) setError(err.detail);
+        else if (err.status === 422) setFieldError(err.detail);
+        else setError(err.detail);
+      } else {
+        setError("Sign-up failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -51,6 +63,7 @@ export default function SignupPage() {
           I agree to the Terms of Service and Privacy Policy.
         </label>
 
+        {fieldError && <p role="alert" className="text-xs text-white/80 liquid-glass rounded-xl px-3 py-2">{fieldError}</p>}
         {error && <p role="alert" className="text-xs text-white/80 liquid-glass rounded-xl px-3 py-2">{error}</p>}
 
         <button

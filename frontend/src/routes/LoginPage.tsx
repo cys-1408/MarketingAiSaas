@@ -3,12 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { AuthShell } from "../components/layout/AuthShell";
 import { useAuth } from "../hooks/useAuth";
+import { ApiError } from "../services/api";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("avery@northfield.io");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
-  const [remember, setRemember] = useState(true);
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -17,12 +18,19 @@ export default function LoginPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!email.includes("@")) { setError("Enter a valid email address."); return; }
-    if (password.length < 4) { setError("Enter your password."); return; }
+    setFieldError(null);
+    if (!email.includes("@")) { setFieldError("Enter a valid email address."); return; }
+    if (password.length < 1) { setFieldError("Enter your password."); return; }
     setLoading(true);
     try {
       await login(email, password);
       navigate("/app/overview");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.detail
+          : "Sign-in failed. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -63,15 +71,16 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs">
-          <label className="flex items-center gap-2 text-white/60">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="accent-white/80" />
-            Remember me
-          </label>
+        <div className="flex items-center justify-end text-xs">
           <Link to="/forgot-password" className="text-white/60 hover:text-white">Forgot password?</Link>
         </div>
 
-        {error && <p role="alert" className="text-xs text-white/80 liquid-glass rounded-xl px-3 py-2">{error}</p>}
+        {fieldError && <p role="alert" className="text-xs text-white/80 liquid-glass rounded-xl px-3 py-2">{fieldError}</p>}
+        {error && (
+          <p role="alert" className="text-xs text-white/80 liquid-glass rounded-xl px-3 py-2">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit" disabled={loading}
@@ -85,9 +94,6 @@ export default function LoginPage() {
       <p className="text-center text-xs text-white/50 mt-6">
         Don't have a workspace?{" "}
         <Link to="/signup" className="text-white hover:underline">Sign up</Link>
-      </p>
-      <p className="text-center text-[10px] text-white/30 mt-3">
-        Development mode: any email/password combination signs you into a demo workspace.
       </p>
     </AuthShell>
   );

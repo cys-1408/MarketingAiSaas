@@ -1,24 +1,13 @@
+import { useState } from "react";
 import { DashboardShell } from "../components/layout/DashboardShell";
 import { GlassCard, GlassButton, DemoBadge } from "../components/glass/Glass";
-import { currentUser, campaigns } from "../services/mock/fixtures";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { request } from "../services/api";
+import type { SourceRecord } from "../types";
 import { Upload, Plug, Sparkles, GitCompareArrows, Network, FlaskConical, ArrowUpRight, ListChecks } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-const trend = [
-  { d: "Sep 1", spend: 1800, revenue: 2400 }, { d: "Sep 8", spend: 2100, revenue: 3100 },
-  { d: "Sep 15", spend: 2600, revenue: 4200 }, { d: "Sep 22", spend: 2300, revenue: 3800 },
-  { d: "Sep 29", spend: 3100, revenue: 5200 },
-];
-
-const kpis = [
-  { label: "Total Campaigns", value: campaigns.length.toString() },
-  { label: "Tracked Spend", value: "$57.7K" },
-  { label: "Attributed Revenue", value: "$252.6K" },
-  { label: "Conversion Rate", value: "3.1%" },
-  { label: "Avg. CTR", value: "1.9%" },
-  { label: "Connected Sources", value: "2" },
-];
+import { useAuth } from "../hooks/useAuth";
+import { useEffect } from "react";
+import type { Campaign, UsageResponse } from "../types";
 
 const quickActions = [
   { label: "Upload Files", icon: Upload, to: "/app/sources" },
@@ -29,27 +18,102 @@ const quickActions = [
   { label: "Create Experiment Brief", icon: FlaskConical, to: "/app/experiments" },
 ];
 
+/**
+ * Mirrors the real sources-list response (`GET /api/v1/ingestion/sources`).
+ * Only statuses that actually mean "processed" count as ready.
+ */
+const READY_STATES = new Set(["ready", "partially_ready"]);
+const ACTIVE_STATES = new Set([
+  "queued", "inspecting", "mapping", "awaiting_review", "normalizing", "indexing", "graph_updating", "validating",
+]);
+
 export default function OverviewPage() {
   const navigate = useNavigate();
+  const { user, workspace } = useAuth();
+  const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
+  const [sources, setSources] = useState<SourceRecord[] | null>(null);
+  const [usage, setUsage] = useState<UsageResponse | null>(null);
+  const [activity, setActivity] = useState<{ id: string; actor: string; action: string; created_at: string | null }[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!workspace?.id) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        // All state comes from the server; failures show error states.
+        const [c, s, u, a] = await Promise.all([
+          request<{ campaigns: Campaign[] }>("/campaigns"),
+          request<{ sources: SourceRecord[] }>("/ingestion/sources"),
+          request<UsageResponse>(`/workspaces/${workspace!.id}/usage`),
+          request<{ events: { id: string; actor: string; action: string; created_at: string | null }[] }>(
+            `/workspaces/${workspace!.id}/activity`,
+          ),
+        ]);
+        if (cancelled) return;
+        setCampaigns(c.campaigns);
+        setSources(s.sources);
+        setUsage(u);
+        setActivity(a.events);
+        setError(null);
+      } catch {
+        if (!cancelled) setError("Could not load this workspace's live data. Retry once the service is reachable.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [workspace?.id]);
+
+  const readySources = sources?.filter((s) => READY_STATES.has(s.status)).length ?? 0;
+  const reviewPending = sources?.filter((s) => s.review_pending).length ?? 0;
+  const activeJobs = sources?.filter((s) => ACTIVE_STATES.has(s.status)).length ?? 0;
+
   return (
     <DashboardShell title="Overview">
       <GlassCard className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <p className="text-white/50 text-xs mb-1">Good morning, {currentUser.name.split(" ")[0]}</p>
+          <p className="text-white/50 text-xs mb-1">Welcome, {user?.name.split(" ")[0] ?? "there"}</p>
           <p className="text-sm text-white/85 flex items-center gap-2">
             <ListChecks size={14} className="text-white/60" />
-            Workspace status: <span className="font-medium">Partially ready</span> — 3 field mappings need review.
+            {reviewPending > 0 ? (
+              <>
+                Workspace status: <span className="font-medium">Action needed</span> — {reviewPending} field mapping{reviewPending === 1 ? "" : "s"} need review.
+              </>
+            ) : (
+              <>Workspace status: <span className="font-medium">{loading ? "Checking…" : "No reviews pending"}</span></>
+            )}
           </p>
         </div>
-        <GlassButton onClick={() => navigate("/app/mapping-review")}>Review 3 field mappings</GlassButton>
+        {reviewPending > 0 && (
+          <GlassButton onClick={() => navigate("/app/mapping-review")}>
+            Review {reviewPending} field mapping{reviewPending === 1 ? "" : "s"}
+          </GlassButton>
+        )}
       </GlassCard>
 
+      {error && (
+        <GlassCard>
+          <p role="alert" className="text-sm text-white/75">{error}</p>
+        </GlassCard>
+      )}
+
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-white/70">Key metrics</h2>
+        <h2 className="text-sm font-medium text-white/70">Workspace totals (live)</h2>
         <DemoBadge />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        {kpis.map((k) => (
+        {[
+          { label: "Total Campaigns", value: campaigns ? String(campaigns.length) : "—" },
+          { label: "Connected Sources", value: usage ? String(usage.sources) : "—" },
+          { label: "Metric Rows", value: usage ? usage.metric_rows.toLocaleString() : "—" },
+          { label: "Indexed Chunks", value: usage ? usage.indexed_chunks.toLocaleString() : "—" },
+          { label: "Sources Ready", value: sources ? `${readySources} / ${sources.length}` : "—" },
+          { label: "Jobs In Progress", value: usage ? String(usage.jobs_in_progress ?? activeJobs) : "—" },
+        ].map((k) => (
           <GlassCard key={k.label}>
             <p className="text-xs text-white/50 mb-1.5">{k.label}</p>
             <p className="text-xl font-medium text-white">{k.value}</p>
@@ -57,35 +121,31 @@ export default function OverviewPage() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-3">
-        <GlassCard className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-white/85">Spend vs. attributed revenue</p>
-            <span className="text-[11px] text-white/40">Sep 1 – Sep 30 · Demo data</span>
+      <GlassCard>
+        <p className="text-sm font-medium text-white/85 mb-3">Recent campaigns</p>
+        {!campaigns ? (
+          <p className="text-xs text-white/40">Loading campaigns…</p>
+        ) : campaigns.length === 0 ? (
+          <p className="text-xs text-white/40">No campaigns yet. Upload a source or connect a platform to bring campaign data in.</p>
+        ) : (
+          <div className="space-y-2">
+            {campaigns.slice(0, 5).map((c) => (
+              <button
+                key={c.id}
+                onClick={() => navigate(`/app/campaigns/${c.id}`)}
+                className="liquid-glass rounded-xl px-3 py-2.5 flex justify-between items-center w-full text-left"
+              >
+                <span className="text-xs text-white/80">{c.name}</span>
+                <span className="text-[11px] text-white/35 capitalize">{c.channel}{c.start_date ? ` · ${c.start_date}${c.end_date ? ` – ${c.end_date}` : ""}` : ""}</span>
+              </button>
+            ))}
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={trend}>
-              <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
-              <XAxis dataKey="d" stroke="rgba(255,255,255,0.4)" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis stroke="rgba(255,255,255,0.4)" fontSize={11} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={{ background: "rgba(10,10,10,0.9)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} />
-              <Line type="monotone" dataKey="spend" stroke="rgba(255,255,255,0.4)" strokeWidth={2} dot={false} name="Spend" />
-              <Line type="monotone" dataKey="revenue" stroke="rgba(255,255,255,0.95)" strokeWidth={2} dot={false} name="Revenue" />
-            </LineChart>
-          </ResponsiveContainer>
-        </GlassCard>
-
-        <GlassCard>
-          <p className="text-sm font-medium text-white/85 mb-3">Insight</p>
-          <p className="text-xs text-white/50 mb-2">Observed fact</p>
-          <p className="text-sm text-white/80 mb-3">Autumn Acquisition Push CTR is 1.73%, above the account median.</p>
-          <p className="text-xs text-white/50 mb-2">Hypothesis</p>
-          <p className="text-sm text-white/70 mb-3">Creative refresh may be contributing to the lift — not yet confirmed.</p>
-          <button onClick={() => navigate("/app/investigations")} className="text-xs text-white/80 flex items-center gap-1 hover:text-white">
-            Open investigation <ArrowUpRight size={12} />
-          </button>
-        </GlassCard>
-      </div>
+        )}
+        <p className="text-[11px] text-white/35 mt-3">
+          Totals count persisted workspace records; spend and revenue appear on each campaign's detail page when the
+          connected source provides those metrics.
+        </p>
+      </GlassCard>
 
       <GlassCard>
         <p className="text-sm font-medium text-white/85 mb-3">Quick actions</p>
@@ -103,17 +163,24 @@ export default function OverviewPage() {
       </GlassCard>
 
       <GlassCard>
-        <p className="text-sm font-medium text-white/85 mb-3">Recent activity</p>
-        <div className="space-y-2">
-          {[
-            "paid_social_q3.csv finished indexing · 2 hours ago",
-            "crm_contacts_export.xlsx awaiting mapping review · 4 hours ago",
-            "Meta Ads sync completed · 1 hour ago",
-            "Investigation: \"Why did CTR increase?\" completed · yesterday",
-          ].map((a) => (
-            <div key={a} className="text-xs text-white/60 liquid-glass rounded-xl px-3 py-2.5">{a}</div>
-          ))}
-        </div>
+        <p className="text-sm font-medium text-white/85 mb-3">Recent activity (audit log)</p>
+        {!activity ? (
+          <p className="text-xs text-white/40">{loading ? "Loading activity…" : "No activity loaded."}</p>
+        ) : activity.length === 0 ? (
+          <p className="text-xs text-white/40">No recorded activity yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {activity.slice(0, 5).map((ev) => (
+              <div key={ev.id} className="text-xs text-white/60 liquid-glass rounded-xl px-3 py-2.5">
+                <span className="text-white/80">{ev.actor}</span> — {ev.action.replace(/[_.]/g, " ")}
+                {ev.created_at ? ` · ${new Date(ev.created_at).toLocaleString()}` : ""}
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => navigate("/app/activity")} className="text-xs text-white/80 flex items-center gap-1 hover:text-white mt-3">
+          Open activity log <ArrowUpRight size={12} />
+        </button>
       </GlassCard>
     </DashboardShell>
   );
