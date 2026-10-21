@@ -177,8 +177,13 @@ def login(payload: LoginRequest, request: Request):
         # Generic invalid-credential message prevents account enumeration.
         if user is None or not verify_password(payload.password, user.password_hash) or not user.is_active:
             raise HTTPException(status_code=401, detail="invalid email or password")
+        # The active workspace is the most recently joined one: multi-workspace
+        # users sign in where they were last added, with the role that grants
+        # their current permissions (e.g. viewer in a workspace they joined).
         membership = db.execute(
-            select(Membership).where(Membership.user_id == user.id)
+            select(Membership)
+            .where(Membership.user_id == user.id)
+            .order_by(Membership.created_at.desc())
         ).scalars().first()
         if membership is None:
             raise HTTPException(status_code=403, detail="no workspace membership found")

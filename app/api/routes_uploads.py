@@ -101,6 +101,7 @@ def upload(
             select(Source).where(
                 Source.workspace_id == claims.workspace_id,
                 Source.checksum == checksum,
+                Source.deleted_at.is_(None),
             )
         ).scalar_one_or_none()
         if existing is not None:

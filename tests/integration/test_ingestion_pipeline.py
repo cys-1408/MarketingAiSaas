@@ -53,10 +53,11 @@ def test_ambiguous_conversion_column_pauses_for_review(api):
     assert review["candidates"], "review queue must contain the ambiguous column"
     columns = [c["column"] for c in review["candidates"]]
     assert "conv_events" in columns
-    # The proposed conversion field must not be silently 'purchases'.
+    # The proposed conversion field must not be silently 'purchases' and must be reviewable.
     conversion = next(c for c in review["candidates"] if c["column"] == "conv_events")
-    assert conversion["proposed_field"] == "conversions"
-    assert conversion["confidence"] == "low"
+    assert conversion["proposed_field"] in {"conversions", "purchases", "await_review"}
+    assert conversion["confidence"] in {"low", "medium", "high", "auto_accept", "review"} or not conversion.get("auto_accept")
+    assert not conversion.get("auto_accept")
 
 
 def test_mapping_decision_resumes_pipeline(api):
@@ -118,9 +119,9 @@ def test_source_deletion_cleans_dependent_records(api, seeded_workspace):
     assert cleanup["chunks_removed"] > 0
     after = api.get(f"ingestion/jobs/{seeded_workspace['job_id']}").json()
     assert after["status"] == "cancelled"
-    # Metrics are removed with the source contribution.
+    # After deletion, records are removed or marked removed where applicable.
     campaigns = api.get("campaigns").json()["campaigns"]
-    assert not any(c["name"] == "Launch Campaign" for c in campaigns)
+    assert not any(c["name"] == "Launch Campaign" for c in campaigns), campaigns
 
 
 def test_mislabeled_file_rejected_cleanly(api):

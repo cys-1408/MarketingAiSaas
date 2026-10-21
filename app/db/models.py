@@ -428,10 +428,10 @@ class Conversation(Base, IdMixin, TimestampMixin):
 
 class ConversationMessage(Base, IdMixin):
     __tablename__ = "conversation_messages"
-    conversation_id: Mapped[str] = mapped_column(String(32), index=True)
-    workspace_id: Mapped[str] = mapped_column(String(32), index=True)
-    role: Mapped[str] = mapped_column(String(16))
-    content: Mapped[str] = mapped_column(LongText)
+    conversation_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    workspace_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(LongText, nullable=False)
     structured: Mapped[dict[str, Any] | None] = mapped_column(JSONType, default=None)
     evidence_ids: Mapped[list[str]] = mapped_column(JSONType, default=list)
     model: Mapped[str] = mapped_column(String(128), default="")

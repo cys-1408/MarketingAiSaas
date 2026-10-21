@@ -80,9 +80,12 @@ def test_connectors_not_configured_fails_truthfully():
         mailchimp.test_connection()
 
 
-def test_hosted_fallback_never_used_without_consent():
+def test_hosted_fallback_never_used_without_consent(get_session_factory, monkeypatch):
     settings = get_settings()
     assert settings.allow_hosted_fallback is False, "default must be off"
+    # The suite normally pins the deterministic mock model; the fail-closed
+    # fallback policy is what ollama mode must enforce.
+    monkeypatch.setattr(settings, "model_mode", "ollama", raising=True)
     with get_session_factory()() as db:
         router = ModelRouter(db)
         # No local connector paired -> must fail closed, not fall back.

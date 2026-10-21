@@ -143,12 +143,20 @@ def _register_exception_handlers(app: FastAPI) -> None:
 
 
 def _register_health(app: FastAPI) -> None:
+    # Served both at the root and under the versioned API prefix so load
+    # balancers and SDK clients behind the API base URL can probe it.
+    from app.core.config import get_settings as _settings
+
+    api_prefix = _settings().api_prefix
+
     @app.get("/health")
+    @app.get(f"{api_prefix}/health")
     def health() -> dict:
         """Liveness: process is up; this endpoint never claims dependency health."""
         return {"status": "alive", "note": "liveness only; see /ready for dependencies"}
 
     @app.get("/ready")
+    @app.get(f"{api_prefix}/ready")
     def ready() -> JSONResponse:
         """Readiness: reports actual dependency state (database required)."""
         settings = get_settings()

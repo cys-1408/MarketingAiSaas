@@ -26,6 +26,37 @@ class PublishRequest(BaseModel):
     reviewer_note: str = ""
 
 
+@router.get("")
+def list_reports(claims=Depends(_current_user), db: Session = Depends(request_db)):
+    """List saved reports for this workspace with real persisted data only."""
+    from sqlalchemy import select, desc
+    from app.core.tenancy import authorize_workspace
+
+    authorize_workspace(
+        db, user_id=claims.user_id, workspace_id=claims.workspace_id, required_capability=1
+    )
+    reports = db.execute(
+        select(Report)
+        .where(Report.workspace_id == claims.workspace_id)
+        .order_by(desc(Report.created_at))
+        .limit(50)
+    ).scalars().all()
+    return {
+        "reports": [
+            {
+                "id": r.id,
+                "campaign_id": r.campaign_id,
+                "date_start": r.date_start.isoformat() if r.date_start else None,
+                "date_end": r.date_end.isoformat() if r.date_end else None,
+                "status": r.status,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "payload": r.payload if isinstance(r.payload, dict) else {},
+            }
+            for r in reports
+        ]
+    }
+
+
 @router.post("", status_code=201)
 def create_report(payload: ReportRequest, claims=Depends(_current_user), db: Session = Depends(request_db)):
     try:

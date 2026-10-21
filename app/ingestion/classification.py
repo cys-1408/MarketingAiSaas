@@ -93,6 +93,8 @@ def _body_scores(doc: ParsedDocument) -> dict[str, float]:
     for category, tokens in _PRIVACY_SAFE_BODY_HINTS.items():
         for token in tokens:
             if token in text:
+                # Narrative category language is a strong, direct signal: one
+                # clearly matched phrase is enough for a confident placement.
                 scores[category] += 1.0
     return scores
 
@@ -137,7 +139,7 @@ def classify(doc: ParsedDocument) -> Classification:
         r = row_scores.get(category, 0.0)
         if h == b == r == 0.0:
             continue
-        combined[category] = h + 0.6 * b + 0.8 * r
+        combined[category] = h + 1.0 * b + 0.8 * r
     if doc.tables and not doc.sections and max(header_scores.values()) == 0:
         return Classification(
             category="unknown",
@@ -162,7 +164,7 @@ def classify(doc: ParsedDocument) -> Classification:
         reasons.append(f"header tokens matched: {', '.join(sorted(matched)[:6])}")
     if body_scores.get(best, 0) > 0:
         reasons.append("narrative content matched category-specific language")
-    uncertain = confidence < 0.45 or combined[best] < 1.5
+    uncertain = confidence < 0.45 or combined[best] < 1.0
     return Classification(
         category=best,
         confidence=round(confidence, 3),

@@ -68,8 +68,10 @@ class AnalyticsService:
         ctx = context or self._authorize(
             user_id=user_id or "", workspace_id=workspace_id
         )
-        start, end = self._validate_window(start_date, end_date)
+        # Tenant scope is verified before any request validation so that
+        # probing another tenant's ids is indistinguishable from unknown ids.
         campaign = self._campaign_scoped(workspace_id, campaign_id)
+        start, end = self._validate_window(start_date, end_date)
         rows = self.db.execute(
             select(
                 CampaignMetric.metric_name,
@@ -254,6 +256,7 @@ class AnalyticsService:
                 campaign_id=campaign_id,
                 start_date=start_date,
                 end_date=end_date,
+                user_id=user_id,
                 context=None,
             )
             selected = [

@@ -7,6 +7,8 @@ import {
 import { useState } from "react";
 import clsx from "clsx";
 
+import { BRAND_NAME } from "../../brand";
+
 const sections = [
   {
     label: "Workspace",
@@ -58,7 +60,7 @@ export function Sidebar() {
     >
       <div className="flex items-center justify-between px-4 py-4">
         {!collapsed && (
-          <span className="font-semibold tracking-tight text-white/90 text-sm">Marketing Copilot</span>
+          <span className="font-semibold tracking-tight text-white/90 text-sm">{BRAND_NAME}</span>
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}

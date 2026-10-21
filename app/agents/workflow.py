@@ -165,8 +165,8 @@ class InvestigationWorkflow:
             "__plan__": planned,
         }
 
-    def _route_plan(self, state: dict) -> str:
-        plan: list[str] = state.get("__plan__") or ["format"]
+    def _route_plan(self, state) -> str:
+        plan: list[str] = state.get("__plan__") if isinstance(state, dict) else getattr(state, "__plan__", None) or ["format"]
         for step in plan:
             if step == "analytics":
                 return "analytics"
@@ -177,64 +177,79 @@ class InvestigationWorkflow:
         return "format"
 
     def _retrieve_node(self, state: dict) -> dict:
-        services = state.get("__services__", {})
+        services = state.get("__services__")
+        if not isinstance(services, dict) or services.get("db") is None:
+            return {"__state__": state["__state__"], "__services__": {}, "workspace_id": None, "__outcome__": "empty"}
         nodes.retrieve_documents(state["__state__"], db=services.get("db"))
         outcome = "found" if state["__state__"].candidates else "empty"
-        return {"__state__": state["__state__"], "__services__": services, "__outcome__": outcome}
+        return {"__state__": state["__state__"], "__services__": services, "workspace_id": services.get("workspace_id"), "__outcome__": outcome}
 
-    def _route_retrieval(self, state: dict) -> str:
-        return state.get("__outcome__", "empty")
+    def _route_retrieval(self, state) -> str:
+        return state.get("__outcome__", "empty") if isinstance(state, dict) else getattr(state, "__outcome__", "empty")
 
     def _graph_node(self, state: dict) -> dict:
-        services = state.get("__services__", {})
+        services = state.get("__services__")
+        if not isinstance(services, dict) or services.get("db") is None:
+            return {"__state__": state["__state__"], "__services__": {}, "workspace_id": None}
         nodes.retrieve_graph(state["__state__"], db=services.get("db"))
-        return {"__state__": state["__state__"], "__services__": services}
+        return {"__state__": state["__state__"], "__services__": services, "workspace_id": services.get("workspace_id")}
 
     def _analytics_node(self, state: dict) -> dict:
-        services = state.get("__services__", {})
+        services = state.get("__services__")
+        if not isinstance(services, dict) or services.get("db") is None:
+            return {"__state__": state["__state__"], "__services__": {}, "workspace_id": None}
         nodes.execute_analytics(state["__state__"], db=services.get("db"))
-        return {"__state__": state["__state__"], "__services__": services}
+        return {"__state__": state["__state__"], "__services__": services, "workspace_id": services.get("workspace_id")}
 
     def _assemble_node(self, state: dict) -> dict:
         nodes.assemble_evidence(state["__state__"])
         return {"__state__": state["__state__"], "__services__": state.get("__services__", {})}
 
     def _draft_node(self, state: dict) -> dict:
-        services = state.get("__services__", {})
+        services = state.get("__services__")
+        if not isinstance(services, dict) or services.get("db") is None:
+            return {"__state__": state["__state__"], "__services__": {}, "workspace_id": None, "__draft_route__": "abstain"}
         route = nodes.draft_analysis(
             state["__state__"], db=services.get("db"), router=services.get("router", self._router)
         )
-        return {"__state__": state["__state__"], "__services__": services, "__draft_route__": route}
+        return {"__state__": state["__state__"], "__services__": services, "workspace_id": services.get("workspace_id"), "__draft_route__": route}
 
-    def _route_draft(self, state: dict) -> str:
-        return state.get("__draft_route__", "abstain")
+    def _route_draft(self, state) -> str:
+        return state.get("__draft_route__", "abstain") if isinstance(state, dict) else getattr(state, "__draft_route__", "abstain")
 
     def _await_node(self, state: dict) -> dict:
-        services = state.get("__services__", {})
+        services = state.get("__services__")
+        if not isinstance(services, dict) or services.get("db") is None:
+            return {"__state__": state["__state__"], "__services__": {}, "workspace_id": None, "__await_route__": "abstain"}
         route = nodes.await_local_model(state["__state__"], db=services.get("db"))
-        return {"__state__": state["__state__"], "__services__": services, "__await_route__": route}
+        return {"__state__": state["__state__"], "__services__": services, "workspace_id": services.get("workspace_id"), "__await_route__": route}
 
-    def _route_await(self, state: dict) -> str:
-        return state.get("__await_route__", "abstain")
+    def _route_await(self, state) -> str:
+        return state.get("__await_route__", "abstain") if isinstance(state, dict) else getattr(state, "__await_route__", "abstain")
 
     def _review_node(self, state: dict) -> dict:
-        services = state.get("__services__", {})
+        services = state.get("__services__")
+        if not isinstance(services, dict) or services.get("db") is None:
+            return {"__state__": state["__state__"], "__services__": {}, "workspace_id": None, "__review_route__": "format_response"}
         route = nodes.request_review(state["__state__"], db=services.get("db"))
-        return {"__state__": state["__state__"], "__services__": services, "__review_route__": route}
+        return {"__state__": state["__state__"], "__services__": services, "workspace_id": services.get("workspace_id"), "__review_route__": route}
 
-    def _route_guardrails(self, state: dict) -> str:
-        state_ = state["__state__"]
+    def _route_guardrails(self, state) -> str:
+        state_ = state["__state__"] if isinstance(state, dict) else getattr(state, "__state__", state)
         state_.tool_calls += 0
         if any("flagged" in finding for finding in state_.guardrail_findings):
             return "request_review"
         return "format_response"
 
-    def _route_review(self, state: dict) -> str:
-        return state.get("__review_route__", "format_response")
+    def _route_review(self, state) -> str:
+        return state.get("__review_route__", "format_response") if isinstance(state, dict) else getattr(state, "__review_route__", "format_response")
 
     def _format_node(self, state: dict) -> dict:
+        services = state.get("__services__") or {}
+        if not isinstance(services, dict):
+            services = {}
         result = nodes.format_response(state["__state__"])
-        return {"__state__": state["__state__"], "__services__": state.get("__services__", {}), "result": result}
+        return {"__state__": state["__state__"], "__services__": services, "workspace_id": services.get("workspace_id"), "result": result}
 
     # --- public API -------------------------------------------------------------
 

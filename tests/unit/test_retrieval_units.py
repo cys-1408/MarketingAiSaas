@@ -119,9 +119,8 @@ def test_node_and_edge_schema_validation():
                 src_type="Recommendation", dst_type="MetricObservation",
                 provenance="inferred", rule="",
             )
-        )
-    # Causal edge types are not part of the schema at all.
-    assert "CAUSED_BY" not in validate_edge.__doc__ or True
+        )        # Causal edge types are not part of the schema at all.
+        assert "CAUSED_BY" not in EDGE_TYPES
 
 
 def test_invalid_edge_triple_rejected():

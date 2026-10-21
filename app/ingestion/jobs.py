@@ -301,6 +301,19 @@ def normalization_stage(
     return {"narrative_sections": len(doc.sections)}
 
 
+# Human-readable definitions persisted with every base metric row so answers
+# and reports can cite how each number was computed.
+BASE_METRIC_DEFINITIONS: dict[str, str] = {
+    "impressions": "count of impressions served",
+    "clicks": "count of clicks recorded",
+    "spend": "sum of spend in account currency",
+    "sessions": "count of sessions",
+    "conversions": "count of conversions",
+    "purchases": "count of purchases",
+    "revenue": "sum of revenue in account currency",
+}
+
+
 def _persist_metrics(
     db: Session,
     normalized: list[normalization_module.NormalizedMetricRow],
@@ -349,7 +362,9 @@ def _persist_metrics(
                     metric_name=metric_row["metric_name"],
                     value=metric_row["value"],
                     unit=metric_row["unit"],
-                    definition="",
+                    definition=BASE_METRIC_DEFINITIONS.get(
+                        metric_row["metric_name"], ""
+                    ),
                     conversion_event=metric_row.get("conversion_event", ""),
                     provenance={"locator": item.locator, "raw_row": item.raw_row},
                 )
@@ -675,6 +690,16 @@ def delete_source(db: Session, *, workspace_id: str, source_id: str) -> dict[str
         db.delete(item)
     graph_stats = _delete_graph_contributions(db, workspace_id=workspace_id, source_id=source_id)
     chunk_count = VectorIndex(EmbeddingModelShim()).delete_for_source(db, workspace_id, source_id)
+    # Campaigns created by this source cease to exist with it: the client must
+    # never be able to reuse analytics entities tied to deleted lineage.
+    owned_campaigns = db.execute(
+        select(Campaign).where(
+            Campaign.workspace_id == workspace_id,
+            Campaign.source_id == source_id,
+        )
+    ).scalars().all()
+    for campaign in owned_campaigns:
+        db.delete(campaign)
     jobs = db.execute(
         select(IngestionJob).where(
             IngestionJob.workspace_id == workspace_id,
@@ -682,9 +707,10 @@ def delete_source(db: Session, *, workspace_id: str, source_id: str) -> dict[str
         )
     ).scalars().all()
     for ingestion_job in jobs:
-        if ingestion_job.status in {"queued", "running", "inspecting", "awaiting_review"}:
-            ingestion_job.status = "cancelled"
-            ingestion_job.cancel_requested = True
+        # A deleted source has no live workflow; every historical job record is
+        # marked cancelled so queries never report work for a deleted source.
+        ingestion_job.status = "cancelled"
+        ingestion_job.cancel_requested = True
     source.deleted_at = _now()
     source.status = "deleted"
     return {

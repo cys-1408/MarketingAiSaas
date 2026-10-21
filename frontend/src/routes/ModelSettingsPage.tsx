@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DashboardShell } from "../components/layout/DashboardShell";
 import { GlassCard, GlassButton, StatusBadge } from "../components/glass/Glass";
+import { BRAND_NAME } from "../brand";
 import { ShieldAlert } from "lucide-react";
 
 export default function ModelSettingsPage() {
@@ -63,7 +64,7 @@ export default function ModelSettingsPage() {
           <div>
             <p className="text-sm text-white/85 mb-1">Hosted model fallback</p>
             <p className="text-xs text-white/50 mb-3 leading-relaxed">
-              Opt-in only. Marketing Copilot never silently switches from local to hosted inference. Never expose your local
+              Opt-in only. {BRAND_NAME} never silently switches from local to hosted inference. Never expose your local
               Ollama instance directly to the public internet.
             </p>
             <label className="flex items-center gap-2 text-xs text-white/70">

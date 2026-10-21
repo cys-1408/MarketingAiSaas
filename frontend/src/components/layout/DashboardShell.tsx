@@ -1,14 +1,27 @@
 import { type ReactNode, useState } from "react";
 import { Bell, HelpCircle, Search, Menu, X, LogOut } from "lucide-react";
 import { Sidebar } from "./Sidebar";
-import { currentWorkspace } from "../../services/mock/fixtures";
 import { useAuth } from "../../hooks/useAuth";
 import { useNavigate, NavLink } from "react-router-dom";
+import { BRAND_NAME } from "../../brand";
 
-export function DashboardShell({ children, title, actions }: { children: ReactNode; title?: string; actions?: ReactNode }) {
-  const { user, logout } = useAuth();
+export function DashboardShell({
+  children,
+  title,
+  actions,
+}: {
+  children: ReactNode;
+  title?: string;
+  actions?: ReactNode;
+}) {
+  const { user, workspace, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  async function onLogout() {
+    await logout();
+    navigate("/");
+  }
 
   return (
     <div className="min-h-screen flex bg-ink-950 text-white">
@@ -17,8 +30,10 @@ export function DashboardShell({ children, title, actions }: { children: ReactNo
         <div className="fixed inset-0 z-50 md:hidden flex">
           <div className="w-72 glass-panel-solid m-3 rounded-3xl p-4 flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <span className="font-semibold text-sm">Marketing Copilot</span>
-              <button onClick={() => setMobileOpen(false)} className="text-white/60"><X size={18} /></button>
+              <span className="font-semibold text-sm">{BRAND_NAME}</span>
+              <button onClick={() => setMobileOpen(false)} className="text-white/60">
+                <X size={18} />
+              </button>
             </div>
             <div className="text-white/60 text-sm">Use desktop width for full navigation.</div>
           </div>
@@ -32,7 +47,7 @@ export function DashboardShell({ children, title, actions }: { children: ReactNo
               <Menu size={18} />
             </button>
             <div className="min-w-0">
-              <p className="text-xs text-white/40 truncate">{currentWorkspace.name}</p>
+              <p className="text-xs text-white/40 truncate">{workspace?.name ?? "Workspace"}</p>
               <h1 className="text-base font-medium text-white/95 truncate">{title ?? "Overview"}</h1>
             </div>
           </div>
@@ -48,14 +63,15 @@ export function DashboardShell({ children, title, actions }: { children: ReactNo
             <button className="liquid-glass w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white" aria-label="Notifications">
               <Bell size={15} />
             </button>
-            <button className="liquid-glass w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white" aria-label="Help">
-              <HelpCircle size={15} />
-            </button>
-            <NavLink to="/app/settings" className="liquid-glass w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium text-white/80">
-              {user?.avatarInitials ?? "AC"}
+            <NavLink
+              to="/app/settings"
+              className="liquid-glass w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium text-white/80"
+              aria-label={`Account settings for ${user?.name ?? "user"}`}
+            >
+              {user?.avatar_initials ?? "…"}
             </NavLink>
             <button
-              onClick={() => { logout(); navigate("/"); }}
+              onClick={() => void onLogout()}
               className="liquid-glass w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white"
               aria-label="Log out"
             >

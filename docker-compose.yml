@@ -1,0 +1,77 @@
+# Reproducible local development services for MarketingAiSaas.
+#
+# What runs in Compose vs. separately:
+#   - Compose: PostgreSQL (primary datastore for production-like runs) and
+#     the API itself, plus persistent volumes.
+#   - Separate: the customer's local Ollama model connector pairs outbound to
+#     the API from their own machine — it is never a Compose service, by
+#     design (source text stays on the customer's hardware unless hosted
+#     fallback is explicitly enabled).
+#
+# The application can also run fully self-contained on SQLite with no
+# Compose at all (`APP_DATABASE_URL=sqlite:///./data/marketingai.db`).
+#
+# Credentials below are LOCAL-ONLY defaults, clearly documented and meant to
+# be overridden. Never use them in production.
+#
+# Startup:
+#   docker compose up -d postgres      # database only
+#   docker compose up -d api           # or `--build` after code changes
+#   docker compose run --rm api alembic upgrade head   # migrations
+#   docker compose down -v             # stop AND reset volumes
+#
+# Health checks verify the actual dependency (PostgreSQL readiness via
+# pg_isready), not just that the container process exists.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      # Local-only development credentials (override for anything shared).
+      POSTGRES_USER: marketingai
+      POSTGRES_PASSWORD: marketingai
+      POSTGRES_DB: marketingai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketingai -d marketingai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENVIRONMENT: development
+      APP_DATABASE_URL: postgresql+psycopg://marketingai:marketingai@postgres:5432/marketingai
+      APP_OBJECT_STORAGE_DIR: /data/object_storage
+      APP_INGEST_WORKER_ENABLED: "true"
+      # Sessions: supply a real secret via .env for anything beyond local play.
+      APP_SESSION_SECRET: ${APP_SESSION_SECRET:-generate-a-real-secret-locally}
+      APP_MODEL_MODE: mock
+      APP_ALLOW_HOSTED_FALLBACK: "false"
+      APP_CORS_ORIGINS: '["http://localhost:5173"]'
+    volumes:
+      - object_storage:/data/object_storage
+    ports:
+      - "8000:8000"
+    healthcheck:
+      # Readiness is truth: /ready reports the actual database dependency.
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/ready', timeout=3).status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  object_storage:

@@ -16,7 +16,12 @@ def _campaign_id(api, name: str) -> str:
 def _upload(api, data: bytes, name: str) -> str:
     files = {"file": (name, io.BytesIO(data), "text/csv")}
     response = api.post("sources/uploads", files=files)
-    source_id = response.json()["source_id"]
+    body = response.json()
+    if body.get("status") == "duplicate":
+        source_id = body["source_id"]
+    else:
+        assert response.status_code == 202, body
+        source_id = body["source_id"]
     run_ingestion_now(source_id)
     return source_id
 
@@ -124,7 +129,14 @@ def test_vectors_deleted_for_source_update(api, seeded_workspace):
     from app.db.models import Chunk
     from sqlalchemy import select, func
 
+    import sys
     with get_session_factory()() as db:
+        before_all = db.execute(
+            select(Chunk.source_id, Chunk.source_version, Chunk.id).where(Chunk.workspace_id == api.workspace_id)
+        ).all()
+        from collections import Counter
+        cnt = Counter((r[0], r[1]) for r in before_all)
+        sys.stderr.write(f"DBG BEFORE per-source: {cnt}\n")
         before = db.execute(
             select(func.count(Chunk.id)).where(Chunk.workspace_id == api.workspace_id)
         ).scalar_one()
@@ -137,4 +149,5 @@ def test_vectors_deleted_for_source_update(api, seeded_workspace):
         after = db.execute(
             select(func.count(Chunk.id)).where(Chunk.workspace_id == api.workspace_id)
         ).scalar_one()
+    sys.stderr.write(f"DBG AFTER total: {after}\n")
     assert after >= before  # chunk ids per version fingerprint; no unbounded growth

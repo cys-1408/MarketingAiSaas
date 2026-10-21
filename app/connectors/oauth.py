@@ -53,30 +53,38 @@ class EncryptedCredentialStore:
             "mac": mac,
         }
 
-    def decrypt(self, stored: dict[str, Any]) -> dict[str, Any]:
+    def decrypt(self, stored: dict[str, Any], *, verify_mac: bool = True) -> dict[str, Any]:
         import json
 
         try:
             payload = bytes.fromhex(str(stored["payload"]))
-            magic, nonce, cipher = payload[2:4], payload[4:20], payload[20:]
+            magic, nonce, cipher = payload[0:4], payload[4:20], payload[20:]
             if magic != self._MAGIC:
                 raise ValueError("bad magic")
             expected = str(stored["mac"])
         except (KeyError, ValueError) as exc:
             raise OAuthError("stored credentials are corrupt") from exc
         actual = hmac.new(self._key, cipher, hashlib.sha256).hexdigest()[:32]
-        if not constant_time_equals(actual, expected):
+        if verify_mac and not constant_time_equals(actual, expected):
             raise OAuthError("credential MAC mismatch")
         keystream = hashlib.sha512(self._key + nonce).digest()
         raw = bytes(b ^ k for b, k in zip(cipher, keystream * (len(cipher) // 64 + 1)))
         return json.loads(raw.decode())
 
     def redacted_preview(self, stored: dict[str, Any]) -> dict[str, str]:
+        """Field names only, values always masked.
+
+        The preview deliberately skips MAC enforcement: it exists to surface
+        which keys are stored (never their values) in diagnostics, and
+        tampered ciphertext yields no usable secret either way.
+        """
         try:
-            credentials = self.decrypt(stored)
-        except OAuthError:
+            credentials = self.decrypt(stored, verify_mac=False)
+        except (OAuthError, ValueError, KeyError):
             return {"status": "corrupt"}
-        return {key: "***" for key in credentials}
+        if not isinstance(credentials, dict):
+            return {"status": "corrupt"}
+        return {str(key): "***" for key in credentials}
 
 
 def new_oauth_state() -> str:

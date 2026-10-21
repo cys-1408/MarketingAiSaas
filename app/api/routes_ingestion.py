@@ -45,6 +45,59 @@ class ReviewRequest(BaseModel):
     decisions: list[MappingDecision]
 
 
+@router.get("/sources")
+def list_sources(claims=Depends(_current_user), db: Session = Depends(_db)):
+    """List workspace sources with their latest job state (real records only)."""
+    authorize_workspace(
+        db, user_id=claims.user_id, workspace_id=claims.workspace_id, required_capability=1
+    )
+    sources = db.execute(
+        select(Source)
+        .where(Source.workspace_id == claims.workspace_id, Source.deleted_at.is_(None))
+        .order_by(Source.updated_at.desc())
+    ).scalars().all()
+    out = []
+    for source in sources:
+        job = db.execute(
+            select(IngestionJob)
+            .where(
+                IngestionJob.source_id == source.id,
+                IngestionJob.source_version == source.latest_version,
+            )
+            .order_by(IngestionJob.created_at.desc())
+        ).scalars().first()
+        safe_error = None
+        if job is not None and job.error:
+            # Serialize only a short, human-readable message; never expose
+            # storage paths, stack traces, or source content.
+            raw = job.error.get("detail") or job.error.get("message")
+            if isinstance(raw, str):
+                safe_error = raw[:300]
+        out.append(
+            {
+                "source_id": source.id,
+                "name": source.name,
+                "file_type": source.file_type,
+                "category": source.category,
+                "status": source.status,
+                "version": source.latest_version,
+                "size_bytes": source.size_bytes,
+                "record_count": source.record_count,
+                "origin": source.origin,
+                "updated_at": source.updated_at.isoformat() if source.updated_at else None,
+                "job_id": job.id if job else None,
+                "job_status": job.status if job else None,
+                "review_pending": bool(job.review_pending) if job else False,
+                "row_count": job.row_count if job else None,
+                "ready_count": job.ready_count if job else None,
+                "error_count": job.error_count if job else None,
+                "warning_count": job.warning_count if job else None,
+                "safe_error": safe_error,
+            }
+        )
+    return {"sources": out}
+
+
 @router.get("/jobs/{job_id}")
 def job_status(job_id: str, claims=Depends(_current_user), db: Session = Depends(_db)):
     authorize_workspace(

@@ -135,6 +135,7 @@ def chat(
             workspace_id=claims.workspace_id, created_by=claims.user_id
         )
         db.add(conversation_ref)
+        db.flush()  # populate the server-default id before writing child rows
         conversation = conversation_ref
     db.add(
         ConversationMessage(

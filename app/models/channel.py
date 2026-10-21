@@ -77,7 +77,12 @@ def complete_pairing(
     ).scalars().all()
     matched: LocalConnector | None = None
     for candidate in candidates:
-        if candidate.pairing_expires_at is None or now > candidate.pairing_expires_at:
+        expiry = candidate.pairing_expires_at
+        # SQLite round-trips timestamps without tzinfo; compare on a common
+        # (UTC-aware) clock so expiry checks cannot crash on storage format.
+        if expiry is not None and expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=dt_timezone.utc)
+        if expiry is None or now > expiry:
             continue
         if candidate.pairing_code_hash and verify_password(pairing_code, candidate.pairing_code_hash):
             matched = candidate

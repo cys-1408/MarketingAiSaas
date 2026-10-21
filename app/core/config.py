@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     hosted_provider: str = ""  # e.g. "openai"; requires allow_hosted_fallback
     hosted_api_key: str = ""
     hosted_model: str = ""
+    # Hosted-model fallback must be explicitly opted in; default is fail-closed
+    # to the customer's own local model (or an explicit unavailable error).
+    allow_hosted_fallback: bool = False
 
     # --- Provider OAuth (each provider functional only when both set) ------
     google_analytics_client_id: str = ""

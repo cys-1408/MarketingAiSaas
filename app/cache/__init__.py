@@ -40,8 +40,12 @@ class CacheValidity:
     prompt_version: str
 
     def fingerprint(self) -> str:
+        from dataclasses import fields as _fields
+
+        # dataclass(slots=True) exposes no __dict__; enumerate declared fields.
+        record = {f.name: getattr(self, f.name) for f in _fields(self)}
         return hashlib.sha256(
-            json.dumps(self.__dict__, sort_keys=True).encode()
+            json.dumps(record, sort_keys=True).encode()
         ).hexdigest()[:32]
 
 

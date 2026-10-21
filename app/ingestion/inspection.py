@@ -141,15 +141,31 @@ def inspect_bytes(data: bytes, declared_type: str, *, parse: bool = True) -> Ins
         )
 
     effective_type = detected if _compat_extension(detected, declared_type) else declared_type
+    doc = None
     try:
         doc = parse_file(data, effective_type)
-    except ParserError as exc:
-        if type_mismatch:
-            raise InspectionError(
-                f"declared as {declared_type} but content is not a valid "
-                f"{declared_type} file: {exc}"
-            ) from exc
-        raise InspectionError(str(exc)) from exc
+    except ParserError as parse_exc:
+        # Office zip containers (xlsx vs docx) share the same PK\x03\x04 magic;
+        # if the sniffed container type fails to open, retry with the declared
+        # type once before rejecting the source.
+        if detected != declared_type and detected in {"xlsx", "docx"}:
+            try:
+                doc = parse_file(data, declared_type)
+            except ParserError:
+                doc = None
+            else:
+                effective_type = declared_type
+                doc.warnings.append(
+                    f"zip container sniffed as '{detected}' but parsed as "
+                    f"'{declared_type}'"
+                )
+        if doc is None:
+            if type_mismatch:
+                raise InspectionError(
+                    f"declared as {declared_type} but content is not a valid "
+                    f"{declared_type} file: {parse_exc}"
+                ) from parse_exc
+            raise InspectionError(str(parse_exc)) from parse_exc
 
     if effective_type == "pdf":
         pages = int(doc.meta.get("page_count", 0) or 0)

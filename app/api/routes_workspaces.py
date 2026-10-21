@@ -111,10 +111,14 @@ def add_member(
         )
     ).scalar_one_or_none()
     if existing is not None:
-        raise HTTPException(status_code=409, detail="user is already a member")
-    db.add(
-        Membership(workspace_id=workspace_id, user_id=user.id, role=payload.role)
-    )
+        # Re-adding an existing member updates their membership to the newly
+        # requested role (an idempotent re-invite) rather than erroring; role
+        # changes always remain auditable.
+        existing.role = payload.role
+    else:
+        db.add(
+            Membership(workspace_id=workspace_id, user_id=user.id, role=payload.role)
+        )
     from app.api.routes_auth import audit
 
     audit(
@@ -196,6 +200,37 @@ def remove_member(
     )
     db.commit()
     return {"removed": user_id}
+
+
+@router.get("/{workspace_id}/activity")
+def activity(workspace_id: str, claims=Depends(_current_user), db: Session = Depends(_db)):
+    """Recent audit events for this workspace (persisted real events)."""
+    authorize_workspace(db, user_id=claims.user_id, workspace_id=workspace_id, required_capability=1)
+    from app.db.models import AuditEvent
+
+    events = db.execute(
+        select(AuditEvent)
+        .where(AuditEvent.workspace_id == workspace_id)
+        .order_by(AuditEvent.created_at.desc())
+        .limit(50)
+    ).scalars().all()
+    users_by_id = {}
+    actor_ids = {e.actor_id for e in events}
+    if actor_ids:
+        rows = db.execute(select(User).where(User.id.in_(actor_ids))).scalars().all()
+        users_by_id = {u.id: u.name for u in rows}
+    return {
+        "events": [
+            {
+                "id": e.id,
+                "actor": users_by_id.get(e.actor_id, "System"),
+                "action": e.action,
+                "detail": e.detail if isinstance(e.detail, dict) else {},
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in events
+        ]
+    }
 
 
 @router.get("/{workspace_id}/usage")

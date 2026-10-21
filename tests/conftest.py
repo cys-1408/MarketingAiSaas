@@ -86,6 +86,9 @@ def api():
             headers = kwargs.pop("headers", {}) or {}
             if self.token and "Authorization" not in headers:
                 headers["Authorization"] = f"Bearer {self.token}"
+            request_id = kwargs.pop("request_id", None)
+            if request_id:
+                headers.setdefault("X-Request-ID", request_id)
             response = self._client.request(method, self._prefix(path), headers=headers, **kwargs)
             # Auto-track authenticated sessions returned by auth endpoints.
             try:
@@ -97,6 +100,25 @@ def api():
                     self.token = body["token"]
                     self.workspace_id = body["workspace"]["id"]
                     self.user_id = body.get("user", {}).get("id", self.user_id)
+            # Self-heal: if the first requests of a session hit auth without a
+            # signup having happened yet, sign up lazily and retry once.
+            if (
+                response.status_code == 401
+                and self.token is None
+                and not path.endswith("auth/signup")
+                and not path.endswith("auth/login")
+                and getattr(self, "_retrying_auth", False) is False
+            ):
+                self._retrying_auth = True
+                try:
+                    self.signup()
+                    retry_headers = dict(headers)
+                    retry_headers["Authorization"] = f"Bearer {self.token}"
+                    response = self._client.request(
+                        method, self._prefix(path), headers=retry_headers, **kwargs
+                    )
+                finally:
+                    self._retrying_auth = False
             return response
 
         def get(self, path: str, **kwargs: Any):
@@ -112,8 +134,9 @@ def api():
             return self.request("PATCH", path, **kwargs)
 
         def signup(self, email: str = "demo@example.com", workspace: str = "Demo WS"):
-            response = self._client.post(
-                "/api/v1/auth/signup",
+            response = self.request(
+                "POST",
+                "auth/signup",
                 json={"email": email, "password": "correct-horse-42", "name": "Demo User", "workspace_name": workspace},
             )
             assert response.status_code == 201, response.text
@@ -128,11 +151,18 @@ def api():
 
 @pytest.fixture(scope="session")
 def tenant_two(api):
-    """A second, unrelated tenant for isolation tests."""
+    """A second, unrelated tenant for isolation tests.
+
+    Signup would normally hijack the shared client's session; the primary
+    tenant's token/workspace is saved and restored so tests that use both
+    tenants keep pointing at the primary workspace unless they opt in.
+    """
     import time
 
     email = f"second-{int(time.time() * 1000)}@example.com"
+    saved = (api.token, api.workspace_id, api.user_id)
     payload = api.signup(email=email, workspace="Other Tenant")
+    api.token, api.workspace_id, api.user_id = saved
     return payload
 
 
@@ -147,14 +177,15 @@ def seeded_workspace(api):
         "Launch Campaign,2026-09-02,Paid Social,1100,55,105,5,220\n"
     ).encode()
     files = {"file": ("metrics.csv", io.BytesIO(csv_bytes), "text/csv")}
-    response = api.post("sources/uploads", files=files)
+    response = api.request(
+        "POST",
+        "sources/uploads",
+        files=files,
+    )
     assert response.status_code == 202, response.text
     body = response.json()
     source_id = body["source_id"]
-    if body.get("status") == "duplicate":
-        job_id = run_ingestion_now(source_id)
-    else:
-        job_id = run_ingestion_now(source_id)
+    job_id = run_ingestion_now(source_id)
     return {"source_id": source_id, "job_id": job_id}
 
 
@@ -173,13 +204,18 @@ def run_ingestion_now(source_id: str) -> str:
             )
         ).scalars().first()
         if job is None:
-            # Duplicate upload reused the source with no new job.
+            # Duplicate upload reused the source with no new job; the most
+            # recent job already ingested these bytes.
             job = db.execute(
-                select(IngestionJob).where(
-                    IngestionJob.source_id == source_id,
-                )
+                select(IngestionJob)
+                .where(IngestionJob.source_id == source_id)
+                .order_by(IngestionJob.created_at.desc())
             ).scalars().first()
             assert job is not None, "no ingestion job for source"
+            if job.status == "ready":
+                return job.id  # already ingested; re-running would duplicate rows
+        else:
+            assert job.status == "queued", job.status
         job_id = job.id
 
     _execute_job(job_id)

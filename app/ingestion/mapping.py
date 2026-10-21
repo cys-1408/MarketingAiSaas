@@ -98,9 +98,18 @@ def propose_field(column: str, category: str, sample_values: list[str]) -> Mappi
         )
     if len(unique) == 1:
         target = unique[0]
-        # Conversion-like columns must not silently mean "purchase".
+        # Conversion-like columns must not silently mean "purchase".  A column
+        # that only weakly matches (prefix/substring) a conversion-like field
+        # has unlabeled event semantics and must be confirmed by a human;
+        # exact aliases (e.g. 'conv') are explicit and remain auto-accepted.
+        normalized = _norm(column)
+        exact_match = any(
+            _norm(fld.name) == normalized
+            or normalized in {_norm(alias) for alias in fld.aliases}
+            for fld in schema
+        )
         ambiguous_conversion = (
-            target in {"conversions", "purchases"} and "convert" in _norm(column)
+            target in {"conversions", "purchases"} and not exact_match
         )
         mixed = _value_pattern_conflicts(sample_values)
         confidence = 0.95

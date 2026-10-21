@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Sparkles, WandSparkles, Network, Plus, Globe, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { BRAND_NAME } from "../brand";
 
 const VIDEO_SRC =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260315_073750_51473149-4350-4920-ae24-c8214286f323.mp4";
@@ -31,7 +32,7 @@ export default function LandingPage() {
                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
                   <Sparkles size={15} className="text-white" />
                 </div>
-                <span className="font-semibold tracking-tight text-white text-[15px]">Marketing Copilot</span>
+                <span className="font-semibold tracking-tight text-white text-[15px]">{BRAND_NAME}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Link to="/product" className="liquid-glass hidden sm:inline-flex px-4 py-2 rounded-full text-xs font-medium text-white/80">
@@ -116,7 +117,7 @@ export default function LandingPage() {
               </p>
               <div className="flex items-center justify-center gap-3 text-[10px] tracking-[0.15em] text-white/50 uppercase">
                 <span className="h-px w-8 bg-white/25" />
-                The Campaign Copilot
+                {BRAND_NAME}
                 <span className="h-px w-8 bg-white/25" />
               </div>
             </div>

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Sparkles, ArrowRight, Network, WandSparkles, BarChart3 } from "lucide-react";
+import { BRAND_NAME } from "../brand";
 
 const pillars = [
   { icon: Sparkles, title: "AI Investigations", text: "Ask open-ended questions about campaign performance and get evidence-backed answers, not guesses." },
@@ -15,7 +16,7 @@ export default function ProductPage() {
         <div className="flex justify-between items-center mb-16">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"><Sparkles size={15} /></div>
-            <span className="font-semibold text-sm">Marketing Copilot</span>
+            <span className="font-semibold text-sm">{BRAND_NAME}</span>
           </Link>
           <Link to="/signup" className="liquid-glass-strong px-4 py-2 rounded-full text-xs font-medium flex items-center gap-1.5">
             Get Started <ArrowRight size={12} />
@@ -25,7 +26,7 @@ export default function ProductPage() {
           The product, <span className="editorial-italic text-white/80">in detail.</span>
         </h1>
         <p className="text-white/60 max-w-xl mb-14">
-          Marketing Copilot connects your campaign data, customer evidence, and AI reasoning into a single, traceable workspace.
+          {BRAND_NAME} connects your campaign data, customer evidence, and AI reasoning into a single, traceable workspace.
         </p>
         <div className="grid md:grid-cols-2 gap-4">
           {pillars.map((p) => (

@@ -201,6 +201,88 @@ def create_experiment_brief(
     }
 
 
+@router.get("/experiments")
+def list_experiments(claims=Depends(_current_user), db: Session = Depends(request_db)):
+    """List experiment briefs for this workspace (real persisted records)."""
+    from sqlalchemy import select
+    from app.core.tenancy import authorize_workspace
+    from app.db.models import Experiment
+
+    authorize_workspace(
+        db, user_id=claims.user_id, workspace_id=claims.workspace_id, required_capability=1
+    )
+    experiments = db.execute(
+        select(Experiment)
+        .where(Experiment.workspace_id == claims.workspace_id)
+        .order_by(Experiment.created_at.desc())
+        .limit(50)
+    ).scalars().all()
+    return {
+        "experiments": [
+            {
+                "id": e.id,
+                "name": e.name,
+                "hypothesis": e.hypothesis,
+                "control": e.control,
+                "variant": e.variant,
+                "primary_metric": e.primary_metric,
+                "guardrail_metrics": e.guardrail_metrics,
+                "stopping_rules": e.stopping_rules,
+                "confounders": e.confounders,
+                "status": e.status,
+            }
+            for e in experiments
+        ]
+    }
+
+
+@router.get("/{campaign_id}/recommendations")
+def list_recommendations(
+    campaign_id: str,
+    claims=Depends(_current_user),
+    db: Session = Depends(request_db),
+):
+    """List persisted recommendations for one campaign."""
+    from sqlalchemy import select
+    from app.core.tenancy import get_scoped, authorize_workspace
+    from app.db.models import Campaign
+
+    authorize_workspace(
+        db, user_id=claims.user_id, workspace_id=claims.workspace_id, required_capability=1
+    )
+    campaign = get_scoped(db, Campaign, claims.workspace_id, campaign_id)
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="campaign not found")
+    recommendations = db.execute(
+        select(Recommendation)
+        .where(
+            Recommendation.workspace_id == claims.workspace_id,
+            Recommendation.campaign_id == campaign_id,
+        )
+        .order_by(Recommendation.created_at.desc())
+        .limit(50)
+    ).scalars().all()
+    return {
+        "recommendations": [
+            {
+                "id": r.id,
+                "campaign_id": r.campaign_id,
+                "action": r.action,
+                "observed_facts": r.observed_facts,
+                "interpretation": r.interpretation,
+                "hypothesis": r.hypothesis,
+                "supporting_evidence": r.supporting_evidence,
+                "contradictory_evidence": r.contradictory_evidence,
+                "primary_metric": r.primary_metric,
+                "risks": r.risks,
+                "missing_data": r.missing_data,
+                "status": r.status,
+            }
+            for r in recommendations
+        ]
+    }
+
+
 @router.get("/{campaign_id}/evidence-review")
 def review_pending(
     campaign_id: str,

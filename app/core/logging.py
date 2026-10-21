@@ -64,7 +64,7 @@ _SENSITIVE_CONTENT_FIELDS = (
 )
 
 _SECRET_PATTERN = re.compile(
-    r"(?:Bearer\s+|sk[-_][A-Za-z0-9]{8,}|ey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)"
+    r"(?:Bearer\s+\S+|sk[-_][A-Za-z0-9]{8,}|ey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)"
 )
 
 

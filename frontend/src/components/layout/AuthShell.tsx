@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
+import { BRAND_NAME } from "../../brand";
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
@@ -11,7 +12,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
             <Sparkles size={15} className="text-white" />
           </div>
-          <span className="font-semibold tracking-tight text-white text-[15px]">Marketing Copilot</span>
+          <span className="font-semibold tracking-tight text-white text-[15px]">{BRAND_NAME}</span>
         </Link>
         <div className="liquid-glass-strong rounded-3xl p-8">{children}</div>
       </div>
